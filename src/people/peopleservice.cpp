@@ -42,7 +42,7 @@ People::PersonPtr JSONToPerson(const QByteArray& jsonData)
         const auto objectifiedDocument = document.object();
         const auto resourceName = objectifiedDocument.value(QStringLiteral("resourceName")).toString();
 
-        return resourceName.startsWith(QStringLiteral("people")) ? People::Person::fromJSON(objectifiedDocument).staticCast<People::Person>() : People::PersonPtr();
+        return resourceName.startsWith(QStringLiteral("people")) ? People::Person::fromJSON(objectifiedDocument) : People::PersonPtr();
     }
 
     return People::PersonPtr();
@@ -51,7 +51,8 @@ People::PersonPtr JSONToPerson(const QByteArray& jsonData)
 QUrl fetchAllContactsUrl()
 {
     QUrl url(Private::GoogleApisUrl);
-    url.setPath(Private::PeopleBasePath % QStringLiteral("/me/connections"));
+    const QString path = Private::PeopleBasePath % QStringLiteral("/me/connections");
+    url.setPath(path);
 
     QUrlQuery query(url);
     query.addQueryItem(QStringLiteral("alt"), QStringLiteral("json"));
@@ -65,7 +66,8 @@ QUrl fetchAllContactsUrl()
 QUrl fetchContactUrl(const QString &fetchQuery, const QString &readMask)
 {
     QUrl url(Private::GoogleApisUrl);
-    url.setPath(Private::PeopleBasePath % QStringLiteral(":searchContacts"));
+    const QString path = Private::PeopleBasePath % QStringLiteral(":searchContacts");
+    url.setPath(path);
 
     QUrlQuery query(url);
     query.addQueryItem(QStringLiteral("alt"), QStringLiteral("json"));
@@ -79,7 +81,8 @@ QUrl fetchContactUrl(const QString &fetchQuery, const QString &readMask)
 QUrl createContactUrl()
 {
     QUrl url(Private::GoogleApisUrl);
-    url.setPath(Private::PeopleBasePath % QStringLiteral(":createContact"));
+    const QString path = Private::PeopleBasePath % QStringLiteral(":createContact");
+    url.setPath(path);
     return url;
 }
 
@@ -102,7 +105,7 @@ QUrl deleteContactUrl(const QString &resourceName)
     return url;
 }
 
-ObjectsList parseConnectionsJSONFeed(const QByteArray &jsonFeed)
+ObjectsList parseConnectionsJSONFeed(FeedData feedData, const QByteArray &jsonFeed)
 {
     ObjectsList output;
     const auto document = QJsonDocument::fromJson(jsonFeed);
@@ -111,9 +114,22 @@ ObjectsList parseConnectionsJSONFeed(const QByteArray &jsonFeed)
         return {};
     }
 
-    const auto connections = document.object().value(QStringLiteral("connections")).toArray();
+    const auto rootObject = document.object();
+    const auto connections = rootObject.value(QStringLiteral("connections")).toArray();
     for(const auto connection : connections) {
         output.append(People::Person::fromJSON(connection.toObject()));
+    }
+
+    feedData.totalResults = rootObject.value(QStringLiteral("totalItems")).toInt();
+
+    if(rootObject.contains(QStringLiteral("nextPageToken"))) {
+        auto url = fetchAllContactsUrl();
+
+        QUrlQuery query(url);
+        query.addQueryItem(QStringLiteral("pageToken"), rootObject.value(QStringLiteral("nextPageToken")).toString());
+
+        url.setQuery(query);
+        feedData.nextPageUrl = url;
     }
 
     return output;

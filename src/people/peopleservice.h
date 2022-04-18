@@ -32,7 +32,7 @@ namespace PeopleService
     KGAPIPEOPLE_EXPORT QUrl createContactUrl();
     KGAPIPEOPLE_EXPORT QUrl updateContactUrl(QString &resourceName, QString &personFields);
     KGAPIPEOPLE_EXPORT QUrl deleteContactUrl(QString &resourceName);
-    KGAPIPEOPLE_EXPORT ObjectsList parseConnectionsJSONFeed(const QByteArray &jsonFeed);
+    KGAPIPEOPLE_EXPORT ObjectsList parseConnectionsJSONFeed(FeedData &feedData, const QByteArray &jsonFeed);
 }
 
 }
